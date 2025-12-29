@@ -7,6 +7,7 @@ project(lautils
 
 add_library(lautils STATIC
     src/bitwalker.c
+    src/parser.c
 )
 
 target_include_directories(lautils
@@ -21,7 +22,7 @@ target_include_directories(lautils
         $<INSTALL_INTERFACE:include>
 )
 
-target_compile_features(lautils PUBLIC c_std_99)
+target_compile_features(lautils PUBLIC c_std_23)
 
 if (MSVC)
     target_compile_options(lautils PRIVATE /W4)
