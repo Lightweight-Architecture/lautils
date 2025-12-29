@@ -29,59 +29,47 @@
 #include <ctype.h>
 #include <lautils/parser.h>
 
-/*
- * Checking symbols
- */
 static bool parse_type_is_hex(const char *line,
                               uint64_t *num)
 {
-    // First check is.. if the first character is a 0
-    if(line[0] != '0') return false;
+    /* checking if user specified it as type hexadecimal  */
+    if(line[0] != '0' || (line[1] != 'x' && line[1] != 'X')) return false;
 
-    // Second check is.. if the 2nd character is a x or a X
-    if(line[1] != 'x' && line[1] != 'X') return false;
-
-    // Third check is to check if the rest of the string is 0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f,A,B,C,D,E,F
-    // To do this we just check for bounds.. each character has to be either in 0 - 9, a - f or A - F
-    for(unsigned long i = 2;; i++)
+    /* nect check is to make sure if the string really is a hexadecimal  */
+    for(uint64_t i = 2;; i++)
     {
         if(line[i] == '\0')
         {
-            if(num)
+            if(num != NULL)
             {
-                *num = strtoul(line, NULL, 16);
+                *num = strtoul(line + 2, NULL, 16);
             }
             return true;
         }
 
         if((line[i] < '0' || line[i] > '9') &&
-            (line[i] < 'a' || line[i] > 'f') &&
-            (line[i] < 'A' || line[i] > 'F'))
+           (line[i] < 'a' || line[i] > 'f') &&
+           (line[i] < 'A' || line[i] > 'F'))
         {
             return false;
         }
     }
 
-    // If it passed all its a hexadecimal string
     return false;
 }
 
 static bool parse_type_is_bin(const char *line,
                               uint64_t *num)
 {
-    // First check is.. if the first character is a 0
-    if(line[0] != '0') return false;
+    /* checking if used specified it as a type binary */
+    if(line[0] != '0' || (line[1] != 'b' && line[1] != 'B')) return false;
 
-    // Second check is.. if the 2nd character is a x or a X
-    if(line[1] != 'b' && line[1] != 'B') return false;
-
-    // Third check is to check if the rest of the string is 0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f,A,B,C,D,E,F
-    // To do this we just check for bounds.. each character has to be either in 0 - 9, a - f or A - F
-    for(unsigned long i = 2;; i++)
+    /* checking if rest of the string complies to a binary */
+    for(uint64_t i = 2;; i++)
     {
         if(line[i] == '\0')
         {
-            if(num)
+            if(num != NULL)
             {
                 *num = strtoul(line + 2, NULL, 2);
             }
@@ -94,18 +82,18 @@ static bool parse_type_is_bin(const char *line,
         }
     }
 
-    // If it passed all its a hexadecimal string
     return false;
 }
 
 static bool parse_type_is_dec(const char *line,
                               uint64_t *num)
 {
-    for(unsigned long i = 0;; i++)
+    /* checking if string complies to a decimal */
+    for(uint64_t i = 0;; i++)
     {
         if(line[i] == '\0')
         {
-            if(num)
+            if(num != NULL)
             {
                 *num = strtoul(line, NULL, 10);
             }
@@ -125,20 +113,26 @@ static bool parse_type_is_dec(const char *line,
 static bool parse_type_is_char(const char *line,
                                uint64_t *num)
 {
-    // Must start and end with single quotes
-    if (line[0] != '\'' || line[2] == '\0')
+    /* checking if this is a string */
+    if(line[0] != '\'' || line[2] == '\0')
+    {
         return false;
+    }
 
-    // Find closing quote
+    /* finding closed quote */
     size_t len = strlen(line);
-    if (len < 3 || line[len - 1] != '\'')
+    if(len < 3 || line[len - 1] != '\'')
+    {
         return false;
+    }
 
     char c;
 
-    if (line[1] == '\\') {
-        // Handle escape sequences like '\n', '\0', '\\', '\t'
-        switch (line[2]) {
+    /* checking if user specified it as normal or special character */
+    if(line[1] == '\\')
+    {
+        switch(line[2])
+        {
             case 'n': c = '\n'; break;
             case 't': c = '\t'; break;
             case 'r': c = '\r'; break;
@@ -146,47 +140,70 @@ static bool parse_type_is_char(const char *line,
             case '0': c = '\0'; break;
             case '\\': c = '\\'; break;
             case '\'': c = '\''; break;
-            default:
-                return false; // Unknown escape
+            default: return false;
         }
-    } else {
-        // Just a normal character like 'a'
-        if (len != 3)
-            return false; // Should be like 'a'
-            c = line[1];
+    }
+    else
+    {
+        if(len != 3)
+        {
+            /* uhm whats up?! */
+            return false;
+        }
+        c = line[1];
     }
 
-    if (num)
+    if(num != NULL)
+    {
         *num = (uint64_t)c;
+    }
 
     return true;
 }
 
-static bool parse_type_is_buffer(const char *line, uint64_t *num, uint64_t *blen)
+static bool parse_type_is_buffer(const char *line,
+                                 uint64_t *num,
+                                 uint64_t *blen)
 {
-    // Must start and end with single quotes
+    /* checking if user specified value as character buffer */
     size_t len = strlen(line);
-    if (len < 3 || line[0] != '\"' || line[len - 1] != '\"')
+    if(len < 3 ||
+       line[0] != '\"' ||
+       line[len - 1] != '\"')
     {
         return false;
     }
 
-    // Allocate temporary buffer (worst case: no escapes)
+    /* allocate temporary buffer */
     char *buf = malloc(len - 1);
-    if (!buf)
-        return false;
 
+    /* null pointer check */
+    if(buf == NULL)
+    {
+        return false;
+    }
+
+    /* copying buffer bit for bit */
     size_t out = 0;
-    for (size_t i = 1; i < len - 1; i++) {
+    for(size_t i = 1; i < len - 1; i++)
+    {
+        /* getting character at position */
         char c = line[i];
-        if (c == '\\') {
-            // Handle escape sequences
-            if (i + 1 >= len - 1) {
+
+        /* checking for escape sequence */
+        if(c == '\\')
+        {
+            /* sanity check */
+            if(i + 1 >= len - 1)
+            {
                 free(buf);
                 return false;
             }
+
+            /* performing escape code check */
             char esc = line[++i];
-            switch (esc) {
+            switch(esc)
+            {
                 case 'n':  buf[out++] = '\n'; break;
                 case 't':  buf[out++] = '\t'; break;
                 case 'r':  buf[out++] = '\r'; break;
@@ -196,19 +213,24 @@ static bool parse_type_is_buffer(const char *line, uint64_t *num, uint64_t *blen
                 case '\'': buf[out++] = '\''; break;
                 default:
                     free(buf);
-                    return false; // Unknown escape
+                    return false; /* unknown escape code */
             }
-        } else {
+        }
+        else
+        {
             buf[out++] = c;
         }
     }
 
-    // Null-terminate
+    /* nullterminating buffer */
     buf[out] = '\0';
     *blen = out;
 
-    if (num)
+    /* null pointer check */
+    if(num != NULL)
+    {
         *num = (unsigned long)buf;
+    }
 
     return true;
 }
