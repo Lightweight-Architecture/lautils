@@ -183,7 +183,7 @@ static bool parse_type_is_buffer(const char *line,
         return false;
     }
 
-    /* copying buffer bit for bit */
+    /* copying buffer byte for byte */
     size_t out = 0;
     for(size_t i = 1; i < len - 1; i++)
     {
@@ -211,6 +211,7 @@ static bool parse_type_is_buffer(const char *line,
                 case '0':  buf[out++] = '\0'; break;
                 case '\\': buf[out++] = '\\'; break;
                 case '\'': buf[out++] = '\''; break;
+                case '"': buf[out++] = '"'; break;
                 default:
                     free(buf);
                     return false; /* unknown escape code */
